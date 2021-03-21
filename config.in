@@ -138,35 +138,53 @@ config  RT2860V2_AUTO_CH_SELECT_ENHANCE
 config  RT2860V2_AP_80211N_DRAFT3
 	bool "802.11n Draft3"
 	depends on RT2860V2_AP
+	default y
 
 config  RT2860V2_AP_RTMP_INTERNAL_TX_ALC
         bool "TSSI Compensation"
         depends on RT2860V2_AP
         depends on RALINK_RT3350 || RALINK_RT3352 || RALINK_RT5350 || TARGET_ramips_mt7620a || TARGET_ramips_mt7620n || RALINK_RT6352
-	default n
+	depends on INTERNAL_PA_INTERNAL_LNA || INTERNAL_PA_EXTERNAL_LNA || EXTERNAL_PA_EXTERNAL_LNA
+	default y
 
 config  RT2860V2_ADJ_PWR_CONSUMPTION_SUPPORT
         bool "Adjust Power Consumption Support"
         depends on RT2860V2_AP
         depends on TARGET_ramips_mt7620a || TARGET_ramips_mt7620n || RALINK_RT6352
-	default n
+	default y
 
 config  RT2860V2_SINGLE_SKU
 	bool "Single SKU"
 	depends on RT2860V2_AP
 	default n
+	
+	
+config INTERNAL_PA_INTERNAL_LNA
+bool "INTERNAL_PA_INTERNAL_LNA"
+			depends on RT2860V2_AP 
+			default n
+			
+config INTERNAL_PA_EXTERNAL_LNA
+bool "INTERNAL_PA_EXTERNAL_LNA"
+			depends on RT2860V2_AP 
+			default n
+			
+config EXTERNAL_PA_EXTERNAL_LNA
+bool "EXTERNAL_PA_EXTERNAL_LNA"
+			depends on RT2860V2_AP
+			default y
 
-choice
-	prompt "Choose Power Design"
-        depends on TARGET_ramips_mt7620a || TARGET_ramips_mt7620n || RALINK_RT6352
-	default INTERNAL_PA_INTERNAL_LNA
-	config  INTERNAL_PA_INTERNAL_LNA
-	bool "Internal PA and Internal LNA"
-	config  INTERNAL_PA_EXTERNAL_LNA
-	bool "Internal PA and External LNA"		
-	config  EXTERNAL_PA_EXTERNAL_LNA
-	bool "External PA and External LNA"		
-endchoice
+#choice
+#	prompt "Choose Power Design"
+#       depends on TARGET_ramips_mt7620a || TARGET_ramips_mt7620n || RALINK_RT6352
+#	default INTERNAL_PA_INTERNAL_LNA
+#	config  INTERNAL_PA_INTERNAL_LNA
+#	bool "Internal PA and Internal LNA"
+#	config  INTERNAL_PA_EXTERNAL_LNA
+#	bool "Internal PA and External LNA"		
+#	config  EXTERNAL_PA_EXTERNAL_LNA
+#	bool "External PA and External LNA"		
+#endchoice
 
 config  RT2860V2_AP_RTMP_INTERNAL_TX_ALC
         bool "TSSI Compensation"
