@@ -1176,6 +1176,30 @@ int RtmpOSFileWrite(struct file *osfd, char *pDataPtr, int writeLen)
 				 &osfd->f_pos);
 }
 
+static inline void __RtmpOSFSInfoChange(OS_FS_INFO * pOSFSInfo,
+					BOOLEAN bSet) {
+	if (bSet) {
+		/* Save uid and gid used for filesystem access. */
+		/* Set user and group to 0 (root) */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29)
+		pOSFSInfo->fsuid = current->fsuid;
+		pOSFSInfo->fsgid = current->fsgid;
+		current->fsuid = current->fsgid = 0;
+#else
+		pOSFSInfo->fsuid = 0;//current_fsuid();  
+		pOSFSInfo->fsgid = 0;//current_fsgid();
+#endif
+		pOSFSInfo->fs = get_fs();
+		set_fs(KERNEL_DS);
+	} else {
+		set_fs(pOSFSInfo->fs);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29)
+		current->fsuid = pOSFSInfo->fsuid;
+		current->fsgid = pOSFSInfo->fsgid;
+#endif
+	}
+}
+
 /*******************************************************************************
 
 	Task create/management/kill related functions.
