@@ -1168,10 +1168,7 @@ void RtmpOSFileSeek(RTMP_OS_FD osfd,
 	osfd->f_pos = offset;
 }
 
-/*int RtmpOSFileRead(RTMP_OS_FD osfd,
-		     char *pDataPtr, int readLen) {*/
-	int RtmpOSFileRead(struct file *osfd, char *pDataPtr, int readLen)
-{
+*int RtmpOSFileRead(RTMP_OS_FD osfd,char *pDataPtr, int readLen) {
 	/* The object must have a read method */
 	if (osfd->f_op && osfd->f_op->read) {
 		return osfd->f_op->read(osfd, pDataPtr, readLen, &osfd->f_pos);
@@ -1181,8 +1178,7 @@ void RtmpOSFileSeek(RTMP_OS_FD osfd,
 	}
 }
 
-int RtmpOSFileWrite(RTMP_OS_FD osfd,
-		    char *pDataPtr, int writeLen) {
+int RtmpOSFileWrite(RTMP_OS_FD osfd,char *pDataPtr, int writeLen) {
 	return osfd->f_op->write(osfd,
 				 pDataPtr,
 				 (
