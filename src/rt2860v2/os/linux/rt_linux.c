@@ -1134,41 +1134,33 @@ void send_monitor_packets(IN PNET_DEV pNetDev,
 	File open/close related functions.
 
  *******************************************************************************/
-RTMP_OS_FD RtmpOSFileOpen(char *pPath,
-			  int flag,
-			  int mode) {
+struct file *RtmpOSFileOpen(char *pPath, int flag, int mode)
+{
 	struct file *filePtr;
-
-	if (flag == RTMP_FILE_RDONLY)
-		flag = O_RDONLY;
-	else if (flag == RTMP_FILE_WRONLY)
-		flag = O_WRONLY;
-	else if (flag == RTMP_FILE_CREAT)
-		flag = O_CREAT;
-	else if (flag == RTMP_FILE_TRUNC)
-		flag = O_TRUNC;
 
 	filePtr = filp_open(pPath, flag, 0);
 	if (IS_ERR(filePtr)) {
 		DBGPRINT(RT_DEBUG_ERROR,
-			 ("%s(): Error %ld opening %s\n", __FUNCTION__,
+			 ("%s(): Error %ld opening %s\n", __func__,
 			  -PTR_ERR(filePtr), pPath));
 	}
 
-	return (RTMP_OS_FD) filePtr;
+	return (struct file *)filePtr;
 }
 
-int RtmpOSFileClose(RTMP_OS_FD osfd) {
+int RtmpOSFileClose(struct file *osfd)
+{
 	filp_close(osfd, NULL);
 	return 0;
 }
 
-void RtmpOSFileSeek(RTMP_OS_FD osfd,
-		    int offset) {
+void RtmpOSFileSeek(struct file *osfd, int offset)
+{
 	osfd->f_pos = offset;
 }
 
-*int RtmpOSFileRead(RTMP_OS_FD osfd,char *pDataPtr, int readLen) {
+int RtmpOSFileRead(struct file *osfd, char *pDataPtr, int readLen)
+{
 	/* The object must have a read method */
 	if (osfd->f_op && osfd->f_op->read) {
 		return osfd->f_op->read(osfd, pDataPtr, readLen, &osfd->f_pos);
@@ -1178,36 +1170,10 @@ void RtmpOSFileSeek(RTMP_OS_FD osfd,
 	}
 }
 
-int RtmpOSFileWrite(RTMP_OS_FD osfd,char *pDataPtr, int writeLen) {
-	return osfd->f_op->write(osfd,
-				 pDataPtr,
-				 (
-	size_t) writeLen,
+int RtmpOSFileWrite(struct file *osfd, char *pDataPtr, int writeLen)
+{
+	return osfd->f_op->write(osfd, pDataPtr, (size_t) writeLen,
 				 &osfd->f_pos);
-}
-
-static inline void __RtmpOSFSInfoChange(OS_FS_INFO * pOSFSInfo,
-					BOOLEAN bSet) {
-	if (bSet) {
-		/* Save uid and gid used for filesystem access. */
-		/* Set user and group to 0 (root) */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29)
-		pOSFSInfo->fsuid = current->fsuid;
-		pOSFSInfo->fsgid = current->fsgid;
-		current->fsuid = current->fsgid = 0;
-#else
-		pOSFSInfo->fsuid = 0;//current_fsuid();  
-		pOSFSInfo->fsgid = 0;//current_fsgid();
-#endif
-		pOSFSInfo->fs = get_fs();
-		set_fs(KERNEL_DS);
-	} else {
-		set_fs(pOSFSInfo->fs);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29)
-		current->fsuid = pOSFSInfo->fsuid;
-		current->fsgid = pOSFSInfo->fsgid;
-#endif
-	}
 }
 
 /*******************************************************************************
