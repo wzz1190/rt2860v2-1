@@ -1134,45 +1134,58 @@ void send_monitor_packets(IN PNET_DEV pNetDev,
 	File open/close related functions.
 
  *******************************************************************************/
-struct file *RtmpOSFileOpen(char *pPath, int flag, int mode)
-{
+RTMP_OS_FD RtmpOSFileOpen(char *pPath,
+			  int flag,
+			  int mode) {
 	struct file *filePtr;
+
+	if (flag == RTMP_FILE_RDONLY)
+		flag = O_RDONLY;
+	else if (flag == RTMP_FILE_WRONLY)
+		flag = O_WRONLY;
+	else if (flag == RTMP_FILE_CREAT)
+		flag = O_CREAT;
+	else if (flag == RTMP_FILE_TRUNC)
+		flag = O_TRUNC;
 
 	filePtr = filp_open(pPath, flag, 0);
 	if (IS_ERR(filePtr)) {
 		DBGPRINT(RT_DEBUG_ERROR,
-			 ("%s(): Error %ld opening %s\n", __func__,
+			 ("%s(): Error %ld opening %s\n", __FUNCTION__,
 			  -PTR_ERR(filePtr), pPath));
 	}
 
-	return (struct file *)filePtr;
+	return (RTMP_OS_FD) filePtr;
 }
 
-int RtmpOSFileClose(struct file *osfd)
-{
+int RtmpOSFileClose(RTMP_OS_FD osfd) {
 	filp_close(osfd, NULL);
 	return 0;
 }
 
-void RtmpOSFileSeek(struct file *osfd, int offset)
-{
+void RtmpOSFileSeek(RTMP_OS_FD osfd,
+		    int offset) {
 	osfd->f_pos = offset;
 }
 
-int RtmpOSFileRead(struct file *osfd, char *pDataPtr, int readLen)
+int RtmpOSFileRead(RTMP_OS_FD osfd, char *pDataPtr, int readLen)
 {
-	/* The object must have a read method */
-	if (osfd->f_op && osfd->f_op->read) {
-		return osfd->f_op->read(osfd, pDataPtr, readLen, &osfd->f_pos);
-	} else {
-		DBGPRINT(RT_DEBUG_ERROR, ("no file read method\n"));
-		return -1;
-	}
+    DBGPRINT(RT_DEBUG_ERROR, ("add: %p %p\n", osfd->f_op, osfd->f_op->read));
+        /* The object must have a read method */
+        if (osfd->f_op /*&& osfd->f_op->read*/) {
+                //return osfd->f_op->read(osfd, pDataPtr, readLen, &osfd->f_pos);
+                return vfs_read(osfd, pDataPtr, readLen, &osfd->f_pos);
+        } else {
+                DBGPRINT(RT_DEBUG_ERROR, ("no file read method\n"));
+                return -1;
+        }
 }
 
-int RtmpOSFileWrite(struct file *osfd, char *pDataPtr, int writeLen)
-{
-	return osfd->f_op->write(osfd, pDataPtr, (size_t) writeLen,
+int RtmpOSFileWrite(RTMP_OS_FD osfd,char *pDataPtr, int writeLen) {
+	return osfd->f_op->write(osfd,
+				 pDataPtr,
+				 (
+	size_t) writeLen,
 				 &osfd->f_pos);
 }
 
