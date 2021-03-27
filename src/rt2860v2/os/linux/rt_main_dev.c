@@ -757,7 +757,29 @@ BOOLEAN RtmpPhyNetDevExit(
 	IN PNET_DEV		net_dev)
 {
 
+#ifdef CONFIG_AP_SUPPORT
+#ifdef APCLI_SUPPORT
+#ifndef P2P_APCLI_SUPPORT
+	/* remove all AP-client virtual interfaces. */
+	RT28xx_ApCli_Remove(pAd);
+#endif /* P2P_APCLI_SUPPORT */
+#endif /* APCLI_SUPPORT */
 
+#ifdef WDS_SUPPORT
+	/* remove all WDS virtual interfaces. */
+	RT28xx_WDS_Remove(pAd);
+#endif /* WDS_SUPPORT */
+
+#ifdef MBSS_SUPPORT
+#ifndef P2P_APCLI_SUPPORT
+	RT28xx_MBSS_Remove(pAd);
+#endif /* P2P_APCLI_SUPPORT */
+#endif /* MBSS_SUPPORT */
+#endif /* CONFIG_AP_SUPPORT */
+
+#ifdef P2P_SUPPORT
+	RTMP_P2P_Remove(pAd);
+#endif /* P2P_SUPPORT */
 
 
 #ifdef INF_PPA_SUPPORT
