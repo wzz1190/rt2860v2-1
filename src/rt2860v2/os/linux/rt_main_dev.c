@@ -566,13 +566,7 @@ int rt28xx_packet_xmit(void *skbsrc)
 	PNDIS_PACKET pPacket = (PNDIS_PACKET) skb;
 
 	GET_PAD_FROM_NET_DEV(pAd, net_dev);	
-
-	if (RTMP_DRIVER_IOCTL_SANITY_CHECK(pAd) != NDIS_STATUS_SUCCESS)
-        {
-                RELEASE_NDIS_PACKET(NULL, (PNDIS_PACKET)pPacket, NDIS_STATUS_FAILURE);
-                return 0;
-        }
-
+	
 	return RTMPSendPackets((NDIS_HANDLE)pAd, (PPNDIS_PACKET) &pPacket, 1,
 							skb->len, RtmpNetEthConvertDevSearch);
 
