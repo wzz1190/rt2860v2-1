@@ -1,28 +1,30 @@
 /*
- *************************************************************************
+ ***************************************************************************
  * Ralink Tech Inc.
- * 5F., No.36, Taiyuan St., Jhubei City,
- * Hsinchu County 302,
- * Taiwan, R.O.C.
+ * 4F, No. 2 Technology 5th Rd.
+ * Science-based Industrial Park
+ * Hsin-chu, Taiwan, R.O.C.
  *
- * (c) Copyright 2002-2010, Ralink Technology, Inc.
+ * (c) Copyright 2002, Ralink Technology, Inc.
  *
- * This program is free software; you can redistribute it and/or modify  *
- * it under the terms of the GNU General Public License as published by  *
- * the Free Software Foundation; either version 2 of the License, or     *
- * (at your option) any later version.                                   *
- *                                                                       *
- * This program is distributed in the hope that it will be useful,       *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of        *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
- * GNU General Public License for more details.                          *
- *                                                                       *
- * You should have received a copy of the GNU General Public License     *
- * along with this program; if not, write to the                         *
- * Free Software Foundation, Inc.,                                       *
- * 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
- *                                                                       *
- *************************************************************************/
+ * All rights reserved. Ralink's source code is an unpublished work and the
+ * use of a copyright notice does not imply otherwise. This source code
+ * contains confidential trade secret material of Ralink Tech. Any attemp
+ * or participation in deciphering, decoding, reverse engineering or in any
+ * way altering the source code is stricitly prohibited, unless the prior
+ * written consent of Ralink Technology, Inc. is obtained.
+ ***************************************************************************
+
+    Module Name:
+    rt_main_dev.c
+
+    Abstract:
+    Create and register network interface.
+
+    Revision History:
+    Who         When            What
+    --------    ----------      ----------------------------------------------
+*/
 
 
 #define RTMP_MODULE_OS
@@ -31,18 +33,13 @@
 #include "rtmp_comm.h"
 #include "rt_os_util.h"
 #include "rt_os_net.h"
-MODULE_LICENSE("GPL");
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
 #ifndef SA_SHIRQ
 #define SA_SHIRQ IRQF_SHARED
 #endif
 #endif
 
-#ifdef RTMP_MAC_USB
-#ifdef OS_ABL_SUPPORT
-MODULE_LICENSE("GPL");
-#endif /* OS_ABL_SUPPORT */
-#endif /* RTMP_MAC_USB */
 
 #ifdef CONFIG_APSTA_MIXED_SUPPORT
 /*UINT32 CW_MAX_IN_BITS;*/
@@ -81,7 +78,7 @@ static INT rt28xx_send_packets(IN struct sk_buff *skb_p, IN struct net_device *n
 
 
 
-static struct net_device_stats *RT28xx_get_ether_stats(
+struct net_device_stats *RT28xx_get_ether_stats(
     IN  struct net_device *net_dev);
 
 
@@ -89,11 +86,14 @@ static struct net_device_stats *RT28xx_get_ether_stats(
 ========================================================================
 Routine Description:
     Close raxx interface.
+
 Arguments:
 	*net_dev			the raxx interface pointer
+
 Return Value:
     0					Open OK
 	otherwise			Open Fail
+
 Note:
 	1. if open fail, kernel will not call the close function.
 	2. Free memory for
@@ -118,7 +118,10 @@ int MainVirtualIF_close(IN struct net_device *net_dev)
 	RTMPInfClose(pAd);
 
 
+#ifdef IFUP_IN_PROBE
+#else
 	VIRTUAL_IF_DOWN(pAd);
+#endif /* IFUP_IN_PROBE */
 
 	RT_MOD_DEC_USE_COUNT();
 
@@ -129,11 +132,14 @@ int MainVirtualIF_close(IN struct net_device *net_dev)
 ========================================================================
 Routine Description:
     Open raxx interface.
+
 Arguments:
 	*net_dev			the raxx interface pointer
+
 Return Value:
     0					Open OK
 	otherwise			Open Fail
+
 Note:
 	1. if open fail, kernel will not call the close function.
 	2. Free memory for
@@ -152,16 +158,21 @@ int MainVirtualIF_open(IN struct net_device *net_dev)
 	if (pAd == NULL)
 		return 0; /* close ok */
 
-#if 0
-	while (RTMP_DRIVER_IOCTL_SANITY_CHECK(pAd) != NDIS_STATUS_SUCCESS)
-        {
-                OS_WAIT(10);
-                DBGPRINT(RT_DEBUG_TRACE, ("Card not ready, NDIS_STATUS_SUCCESS!\n"));
-        }
-#endif 
+#ifdef CONFIG_AP_SUPPORT
+/*	pAd->ApCfg.MBSSID[MAIN_MBSSID].bBcnSntReq = TRUE; */
+	RTMP_DRIVER_AP_MAIN_OPEN(pAd);
+#endif /* CONFIG_AP_SUPPORT */
 
+#ifdef IFUP_IN_PROBE	
+	while (RTMP_DRIVER_IOCTL_SANITY_CHECK(pAd, NULL) != NDIS_STATUS_SUCCESS)
+	{
+		OS_WAIT(10);
+		DBGPRINT(RT_DEBUG_TRACE, ("Card not ready, NDIS_STATUS_SUCCESS!\n"));
+	}
+#else
 	if (VIRTUAL_IF_UP(pAd) != 0)
 		return -1;
+#endif /* IFUP_IN_PROBE */	
 
 	/* increase MODULE use count */
 	RT_MOD_INC_USE_COUNT();
@@ -177,11 +188,14 @@ int MainVirtualIF_open(IN struct net_device *net_dev)
 ========================================================================
 Routine Description:
     Close raxx interface.
+
 Arguments:
 	*net_dev			the raxx interface pointer
+
 Return Value:
     0					Open OK
 	otherwise			Open Fail
+
 Note:
 	1. if open fail, kernel will not call the close function.
 	2. Free memory for
@@ -207,12 +221,6 @@ int rt28xx_close(VOID *dev)
 	RTMPDrvClose(pAd, net_dev);
 
 
-
-#ifdef VENDOR_FEATURE2_SUPPORT
-	printk("Number of Packet Allocated = %lu\n", OS_NumOfPktAlloc);
-	printk("Number of Packet Freed = %lu\n", OS_NumOfPktFree);
-#endif /* VENDOR_FEATURE2_SUPPORT */
-
 	DBGPRINT(RT_DEBUG_TRACE, ("<=== rt28xx_close\n"));
 	return 0; /* close ok */
 } /* End of rt28xx_close */
@@ -222,11 +230,14 @@ int rt28xx_close(VOID *dev)
 ========================================================================
 Routine Description:
     Open raxx interface.
+
 Arguments:
 	*net_dev			the raxx interface pointer
+
 Return Value:
     0					Open OK
 	otherwise			Open Fail
+
 Note:
 ========================================================================
 */
@@ -243,15 +254,15 @@ int rt28xx_open(VOID *dev)
 	struct usb_interface *intf;
 	struct usb_device		*pUsb_Dev;
 	INT 		pm_usage_cnt;
-	UCHAR	Flag;
 #endif /* USB_SUPPORT_SELECTIVE_SUSPEND */
 #endif /* CONFIG_PM */
 #endif /* CONFIG_STA_SUPPORT */
 
+
 	/* sanity check */
 	if (sizeof(ra_dma_addr_t) < sizeof(dma_addr_t))
 		DBGPRINT(RT_DEBUG_ERROR, ("Fatal error for DMA address size!!!\n"));
- 
+
 	GET_PAD_FROM_NET_DEV(pAd, net_dev);	
 
 	/* Sanity check for pAd */
@@ -276,53 +287,16 @@ int rt28xx_open(VOID *dev)
 #else
 	pm_usage_cnt = intf->pm_usage_cnt;
 #endif
-/*	if(!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_CPU_SUSPEND)) */
-	RTMP_DRIVER_ADAPTER_CPU_SUSPEND_TEST(pAd, &Flag);
-	if(!Flag)
+	if (pm_usage_cnt == 0)
 	{
-		if(pm_usage_cnt == 0)
+		int res=1;
+
+		res = usb_autopm_get_interface(intf);
+		if (res)
 		{
-			int res=1;
-#if 0
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,33)
-		if(pUsb_Dev->autosuspend_disabled  ==0)
-#else
-		if(pUsb_Dev->auto_pm ==1)
-#endif
-#endif
-			{
-				res = usb_autopm_get_interface(intf);
-
-/*
-when system  power level from auto to on, auto_pm is 0 and the function radioon will set fRTMP_ADAPTER_SUSPEND
-so we must clear fkag here;
-*/				
-/*				RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_SUSPEND); */
-				RTMP_DRIVER_ADAPTER_SUSPEND_CLEAR(pAd);
-				if (res)
-				{
-					DBGPRINT(RT_DEBUG_ERROR, ("rt28xx_open autopm_resume fail ------\n"));
-					return (-1);;
-				}			
-			}
-#if 0
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,33)
-			else
-			{
-				DBGPRINT(RT_DEBUG_TRACE, ("rt28xx_open: fRTMP_ADAPTER_SUSPEND\n"));
-/*				RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_SUSPEND); */
-				RTMP_DRIVER_ADAPTER_SUSPEND_SET(pAd);
-				return (-1);
-			}
-#endif
-#endif
-
-		}
- 	}
-	else
-	{
-				DBGPRINT(RT_DEBUG_TRACE, ("rt28xx_open: fRTMP_ADAPTER_CPU_SUSPEND\n"));
-				return (-1);;
+			DBGPRINT(RT_DEBUG_ERROR, ("rt28xx_open autopm_resume fail ------\n"));
+			return (-1);;
+		}			
 	}
 
 #endif /* USB_SUPPORT_SELECTIVE_SUSPEND */
@@ -343,10 +317,9 @@ so we must clear fkag here;
 	}
 #endif /* CONFIG_APSTA_MIXED_SUPPORT */
 
-
-#if 0 //WIRELESS_EXT >= 12
-/*	if (net_dev->priv_flags == INT_MAIN) */
-	if (RTMP_DRIVER_MAIN_INF_CHECK(pAd, net_dev->priv_flags) == NDIS_STATUS_SUCCESS)
+#if WIRELESS_EXT >= 12
+/*	if (RT_DEV_PRIV_FLAGS_GET(net_dev) == INT_MAIN) */
+	if (RTMP_DRIVER_MAIN_INF_CHECK(pAd, RT_DEV_PRIV_FLAGS_GET(net_dev)) == NDIS_STATUS_SUCCESS)
 	{
 #ifdef CONFIG_APSTA_MIXED_SUPPORT
 		if (OpMode == OPMODE_AP)
@@ -375,35 +348,29 @@ so we must clear fkag here;
 	if (rt28xx_init(pAd, mac, hostname) == FALSE)
 		goto err;
 
-#if WIRELESS_EXT >= 12
-/*      if (net_dev->priv_flags == INT_MAIN) */
-        if (RTMP_DRIVER_MAIN_INF_CHECK(pAd, net_dev->priv_flags) == NDIS_STATUS_SUCCESS)
-        {
-#ifdef CONFIG_APSTA_MIXED_SUPPORT
-                if (OpMode == OPMODE_AP)
-                        net_dev->wireless_handlers = (struct iw_handler_def *) &rt28xx_ap_iw_handler_def;
-#endif /* CONFIG_APSTA_MIXED_SUPPORT */
-#ifdef CONFIG_STA_SUPPORT
-                if (OpMode == OPMODE_STA)
-                        net_dev->wireless_handlers = (struct iw_handler_def *) &rt28xx_iw_handler_def;
-#endif /* CONFIG_STA_SUPPORT */
-        }
-#endif /* WIRELESS_EXT >= 12 */
-
-
 #ifdef MBSS_SUPPORT
 	/* the function can not be moved to RT2860_probe() even register_netdev()
 	   is changed as register_netdevice().
 	   Or in some PC, kernel will panic (Fedora 4) */
+#ifndef P2P_APCLI_SUPPORT
 	RT28xx_MBSS_Init(pAd, net_dev);
+#endif /* P2P_APCLI_SUPPORT */
 #endif /* MBSS_SUPPORT */
 
+#ifdef WDS_SUPPORT
+	RT28xx_WDS_Init(pAd, net_dev);
+#endif /* WDS_SUPPORT */
 
 #ifdef APCLI_SUPPORT
+#ifndef P2P_APCLI_SUPPORT
 	RT28xx_ApCli_Init(pAd, net_dev);
+#endif /* P2P_APCLI_SUPPORT */
 #endif /* APCLI_SUPPORT */
 
 
+#ifdef P2P_SUPPORT
+	RTMP_P2P_Init(pAd, net_dev);
+#endif /* P2P_SUPPORT */
 
 #ifdef LINUX
 #ifdef RT_CFG80211_SUPPORT
@@ -424,10 +391,10 @@ so we must clear fkag here;
 	return (retval);
 
 err:
-/*+++Add by shiang, move from rt28xx_init() to here. */
+/*+++move from rt28xx_init() to here. */
 /*	RtmpOSIRQRelease(net_dev); */
 	RTMP_DRIVER_IRQ_RELEASE(pAd);
-/*---Add by shiang, move from rt28xx_init() to here. */
+/*---move from rt28xx_init() to here. */
 
 	return (-1);
 } /* End of rt28xx_open */
@@ -440,7 +407,6 @@ PNET_DEV RtmpPhyNetDevInit(
 	struct net_device	*net_dev = NULL;
 /*	NDIS_STATUS		Status; */
 	ULONG InfId, OpMode;
-
 
 	RTMP_DRIVER_MAIN_INF_GET(pAd, &InfId);
 
@@ -489,7 +455,15 @@ PNET_DEV RtmpPhyNetDevInit(
 #endif /*WIRELESS_EXT >= 12 */
 #endif /* CONFIG_APSTA_MIXED_SUPPORT */
 
+	/* put private data structure */
 	RTMP_OS_NETDEV_SET_PRIV(net_dev, pAd);
+
+	/* double-check if pAd is associated with the net_dev */
+	if (RTMP_OS_NETDEV_GET_PRIV(net_dev) == NULL)
+	{
+		RtmpOSNetDevFree(net_dev);
+		return NULL;
+	}
 /*	pAd->net_dev = net_dev; */
 
 	RTMP_DRIVER_NET_DEV_SET(pAd, net_dev);
@@ -497,6 +471,7 @@ PNET_DEV RtmpPhyNetDevInit(
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)
 	SET_MODULE_OWNER(net_dev);
 #endif 
+
 
 	return net_dev;
 	
@@ -547,10 +522,13 @@ VOID *RtmpNetEthConvertDevSearch(
 ========================================================================
 Routine Description:
     The entry point for Linux kernel sent packet to our driver.
+
 Arguments:
     sk_buff *skb		the pointer refer to a sk_buffer.
+
 Return Value:
     0					
+
 Note:
 	This function is the entry point of Tx Path for Os delivery packet to 
 	our driver. You only can put OS-depened & STA/AP common handle procedures 
@@ -566,7 +544,7 @@ int rt28xx_packet_xmit(void *skbsrc)
 	PNDIS_PACKET pPacket = (PNDIS_PACKET) skb;
 
 	GET_PAD_FROM_NET_DEV(pAd, net_dev);	
-	
+
 	return RTMPSendPackets((NDIS_HANDLE)pAd, (PPNDIS_PACKET) &pPacket, 1,
 							skb->len, RtmpNetEthConvertDevSearch);
 
@@ -577,12 +555,15 @@ int rt28xx_packet_xmit(void *skbsrc)
 ========================================================================
 Routine Description:
     Send a packet to WLAN.
+
 Arguments:
     skb_p           points to our adapter
     dev_p           which WLAN network interface
+
 Return Value:
     0: transmit successfully
     otherwise: transmit fail
+
 Note:
 ========================================================================
 */
@@ -601,6 +582,9 @@ static int rt28xx_send_packets(
 	}
 
 	NdisZeroMemory((PUCHAR)&skb_p->cb[CB_OFF], 15);
+#ifdef P2P_SUPPORT
+	NdisZeroMemory((PUCHAR)&skb_p->cb[CB_OFF+26], 1);
+#endif /* P2P_SUPPORT */
 	RTMP_SET_PACKET_NET_DEVICE_MBSSID(skb_p, MAIN_MBSSID);
 	MEM_DBG_PKT_ALLOC_INC(skb_p);
 
@@ -621,10 +605,12 @@ struct iw_statistics *rt28xx_get_wireless_stats(
 	GET_PAD_FROM_NET_DEV(pAd, net_dev);	
 
 
+#ifdef P2P_SUPPORT
+#endif /* P2P_SUPPORT */
 	DBGPRINT(RT_DEBUG_TRACE, ("rt28xx_get_wireless_stats --->\n"));
 
 
-	pDrvIwStats->priv_flags = net_dev->priv_flags;
+	pDrvIwStats->priv_flags = RT_DEV_PRIV_FLAGS_GET(net_dev);
 	pDrvIwStats->dev_addr = (PUCHAR)net_dev->dev_addr;
 
 	if (RTMP_DRIVER_IW_STATS_GET(pAd, pDrvIwStats) != NDIS_STATUS_SUCCESS)
@@ -671,11 +657,23 @@ INT rt28xx_ioctl(
 
 	RTMP_DRIVER_OP_MODE_GET(pAd, &OpMode);
 
+#ifdef CONFIG_AP_SUPPORT
+/*	IF_DEV_CONFIG_OPMODE_ON_AP(pAd) */
+	RT_CONFIG_IF_OPMODE_ON_AP(OpMode)
+	{
+		ret = rt28xx_ap_ioctl(net_dev, rq, cmd);
+	}
+#endif /* CONFIG_AP_SUPPORT */
 
 #ifdef CONFIG_STA_SUPPORT
 /*	IF_DEV_CONFIG_OPMODE_ON_STA(pAd) */
 	RT_CONFIG_IF_OPMODE_ON_STA(OpMode)
 	{
+#ifdef P2P_SUPPORT
+		if (RTMP_DRIVER_P2P_INF_CHECK(pAd, RT_DEV_PRIV_FLAGS_GET(net_dev)) == NDIS_STATUS_SUCCESS)
+			ret = rt28xx_ap_ioctl(net_dev, rq, cmd);
+		else
+#endif /* P2P_SUPPORT */
 		ret = rt28xx_sta_ioctl(net_dev, rq, cmd);
 	}
 #endif /* CONFIG_STA_SUPPORT */
@@ -686,16 +684,21 @@ INT rt28xx_ioctl(
 
 /*
     ========================================================================
+
     Routine Description:
         return ethernet statistics counter
+
     Arguments:
         net_dev                     Pointer to net_device
+
     Return Value:
         net_device_stats*
+
     Note:
+
     ========================================================================
 */
-static struct net_device_stats *RT28xx_get_ether_stats(
+struct net_device_stats *RT28xx_get_ether_stats(
     IN  struct net_device *net_dev)
 {
     VOID *pAd = NULL;
@@ -709,6 +712,8 @@ static struct net_device_stats *RT28xx_get_ether_stats(
 		RT_CMD_STATS DrvStats, *pDrvStats = &DrvStats;
  
 
+		//assign net device for RTMP_DRIVER_INF_STATS_GET()
+		pDrvStats->pNetDev = net_dev;
 		RTMP_DRIVER_INF_STATS_GET(pAd, pDrvStats);
 
 		pStats = (struct net_device_stats *)(pDrvStats->pStats);
@@ -757,6 +762,7 @@ BOOLEAN RtmpPhyNetDevExit(
 	IN PNET_DEV		net_dev)
 {
 
+
 #ifdef CONFIG_AP_SUPPORT
 #ifdef APCLI_SUPPORT
 #ifndef P2P_APCLI_SUPPORT
@@ -781,7 +787,6 @@ BOOLEAN RtmpPhyNetDevExit(
 	RTMP_P2P_Remove(pAd);
 #endif /* P2P_SUPPORT */
 
-
 #ifdef INF_PPA_SUPPORT
 
 	RTMP_DRIVER_INF_PPA_EXIT(pAd);
@@ -800,11 +805,15 @@ BOOLEAN RtmpPhyNetDevExit(
 
 
 /*******************************************************************************
+
 	Device IRQ related functions.
 	
  *******************************************************************************/
 int RtmpOSIRQRequest(IN PNET_DEV pNetDev)
 {
+#if defined(RTMP_PCI_SUPPORT) || defined(RTMP_RBUS_SUPPORT)
+	struct net_device *net_dev = pNetDev;
+#endif
 	ULONG infType;
 	VOID *pAd = NULL;
 	int retval = 0;
@@ -815,8 +824,122 @@ int RtmpOSIRQRequest(IN PNET_DEV pNetDev)
 
 	RTMP_DRIVER_INF_TYPE_GET(pAd, &infType);
 
+#ifdef RTMP_PCI_SUPPORT
+	if (infType == RTMP_DEV_INF_PCI || infType == RTMP_DEV_INF_PCIE)
+	{
+		struct pci_dev *pci_dev;
+/*		POS_COOKIE _pObj = (POS_COOKIE)(pAd->OS_Cookie); */
+/*		RTMP_MSI_ENABLE(pAd); */
+		RTMP_DRIVER_PCI_MSI_ENABLE(pAd, &pci_dev);
 
+		retval = request_irq(pci_dev->irq,  rt2860_interrupt, SA_SHIRQ, (net_dev)->name, (net_dev));
+		if (retval != 0) 
+			printk("RT2860: request_irq  ERROR(%d)\n", retval);
+	}
+#endif /* RTMP_PCI_SUPPORT */
+
+#ifdef RTMP_RBUS_SUPPORT
+	if (infType == RTMP_DEV_INF_RBUS)
+	{
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
+		if ((retval = request_irq(net_dev->irq, rt2860_interrupt, IRQF_SHARED, net_dev->name ,net_dev))) 
+#else
+		if ((retval = request_irq(net_dev->irq,rt2860_interrupt, SA_INTERRUPT, net_dev->name ,net_dev))) 
+#endif
+		{
+			printk("RT2860: request_irq  ERROR(%d)\n", retval);
+		}
+	}
+#endif /* RTMP_RBUS_SUPPORT */
 
 	return retval; 
 	
 }
+
+#ifdef WDS_SUPPORT
+/*
+    ========================================================================
+
+    Routine Description:
+        return ethernet statistics counter
+
+    Arguments:
+        net_dev                     Pointer to net_device
+
+    Return Value:
+        net_device_stats*
+
+    Note:
+
+    ========================================================================
+*/
+struct net_device_stats *RT28xx_get_wds_ether_stats(
+    IN PNET_DEV net_dev)
+{
+    VOID *pAd = NULL;
+/*	INT WDS_apidx = 0,index; */
+	struct net_device_stats *pStats;
+	RT_CMD_STATS WdsStats, *pWdsStats = &WdsStats;
+
+	if (net_dev) {
+		GET_PAD_FROM_NET_DEV(pAd, net_dev);
+	}
+
+/*	if (RT_DEV_PRIV_FLAGS_GET(net_dev) == INT_WDS) */
+	{
+		if (pAd)
+		{
+
+			pWdsStats->pNetDev = net_dev;
+			if (RTMP_COM_IoctlHandle(pAd, NULL, CMD_RTPRIV_IOCTL_WDS_STATS_GET,
+					0, pWdsStats, RT_DEV_PRIV_FLAGS_GET(net_dev)) != NDIS_STATUS_SUCCESS)
+				return NULL;
+
+			pStats = (struct net_device_stats *)pWdsStats->pStats; /*pAd->stats; */
+
+			pStats->rx_packets = pWdsStats->rx_packets; /*pAd->WdsTab.WdsEntry[WDS_apidx].WdsCounter.ReceivedFragmentCount.QuadPart; */
+			pStats->tx_packets = pWdsStats->tx_packets; /*pAd->WdsTab.WdsEntry[WDS_apidx].WdsCounter.TransmittedFragmentCount.QuadPart; */
+
+			pStats->rx_bytes = pWdsStats->rx_bytes; /*pAd->WdsTab.WdsEntry[WDS_apidx].WdsCounter.ReceivedByteCount; */
+			pStats->tx_bytes = pWdsStats->tx_bytes; /*pAd->WdsTab.WdsEntry[WDS_apidx].WdsCounter.TransmittedByteCount; */
+
+			pStats->rx_errors = pWdsStats->rx_errors; /*pAd->WdsTab.WdsEntry[WDS_apidx].WdsCounter.RxErrors; */
+			pStats->tx_errors = pWdsStats->tx_errors; /*pAd->WdsTab.WdsEntry[WDS_apidx].WdsCounter.TxErrors; */
+
+			pStats->rx_dropped = 0;
+			pStats->tx_dropped = 0;
+
+	  		pStats->multicast = pWdsStats->multicast; /*pAd->WdsTab.WdsEntry[WDS_apidx].WdsCounter.MulticastReceivedFrameCount.QuadPart;   // multicast packets received */
+	  		pStats->collisions = pWdsStats->collisions; /*pAd->WdsTab.WdsEntry[WDS_apidx].WdsCounter.OneCollision + pAd->WdsTab.WdsEntry[index].WdsCounter.MoreCollisions;  // Collision packets */
+	  
+	  		pStats->rx_length_errors = 0;
+	  		pStats->rx_over_errors = pWdsStats->rx_over_errors; /*pAd->WdsTab.WdsEntry[WDS_apidx].WdsCounter.RxNoBuffer;                   // receiver ring buff overflow */
+	  		pStats->rx_crc_errors = 0;/*pAd->WlanCounters.FCSErrorCount;     // recved pkt with crc error */
+	  		pStats->rx_frame_errors = pWdsStats->rx_frame_errors; /*pAd->WdsTab.WdsEntry[WDS_apidx].WdsCounter.RcvAlignmentErrors;          // recv'd frame alignment error */
+	  		pStats->rx_fifo_errors = pWdsStats->rx_fifo_errors; /*pAd->WdsTab.WdsEntry[WDS_apidx].WdsCounter.RxNoBuffer;                   // recv'r fifo overrun */
+	  		pStats->rx_missed_errors = 0;                                            /* receiver missed packet */
+	  
+	  		    /* detailed tx_errors */
+	  		pStats->tx_aborted_errors = 0;
+	  		pStats->tx_carrier_errors = 0;
+	  		pStats->tx_fifo_errors = 0;
+	  		pStats->tx_heartbeat_errors = 0;
+	  		pStats->tx_window_errors = 0;
+	  
+	  		    /* for cslip etc */
+	  		pStats->rx_compressed = 0;
+	  		pStats->tx_compressed = 0;
+
+			return pStats;
+		}
+		else
+			return NULL;
+	}
+/*	else */
+/*    		return NULL; */
+}
+#endif /* WDS_SUPPORT */
+
+
+
+
